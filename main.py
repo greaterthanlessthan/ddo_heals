@@ -60,7 +60,7 @@ class GameAction(threading.Thread):
             self._newActionUsed.wait()
             # verify action was used
             time.sleep(self._wait_time)
-            if self._offCooldown():
+            if not self._offCooldown():
                 # when action is on cooldown, sleep for remaining time and then clear action used flag
                 self.offCooldown = False
                 time.sleep(self._remainingTime())
@@ -96,7 +96,7 @@ class GameAction(threading.Thread):
             return True if self._remainingTime() == 0 else False
 
     def _imageSearch(self):
-        found_coords = ahk.image_search(self.icon_path, upper_bound=self._icon_region[:2], lower_bound=self._icon_region[2:])
+        found_coords = ahk.image_search(self.icon_path, upper_bound=self._icon_region[:2], lower_bound=self._icon_region[2:], color_variation=100)
         # just search where the icon is for efficiency
         # this will break if the hotbar is moved. Don't do that. Fix by restarting script.
         if self._update_icon_loc and found_coords is not None:
