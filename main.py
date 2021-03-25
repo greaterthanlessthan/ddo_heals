@@ -1,23 +1,20 @@
 # dependencies: pillow
-from pyautogui import hotkey as simulisend, locateOnScreen
-from pynput.keyboard import HotKey as old_Hotkey, Key, Listener, KeyCode
-import time
 import threading
+import time
 
+from pyautogui import locateOnScreen
+from ahk import AHK
+ahk = AHK()
 
-class HotKey(old_Hotkey):
-    """
-    Make pyautogui (list of keys) and pynpyt.keyboard (parse thing) arg behave the same
-    """
-    #ff@staticmethod
-    #def parse(keys):
-        #super().parse(keys)
+import keyboard, mouse
+
 
 class GameAction(threading.Thread):
     """
     Define a class containing each game action. This class will have all properties
     needed to handle in-game actions
     """
+
     def __init__(self, keybind, cooldown, icon_path=None, update_icon_loc=True, use_grayscale=True, wait_time=0.2):
         # for making threading work
         # set as daemon as nothing important is happening here
@@ -31,7 +28,7 @@ class GameAction(threading.Thread):
         # restrict the region for the image search. These will be dynamically updated for efficiency once
         # the first image search is successful. Disable with update_icon_loc = False
         self._update_icon_loc = update_icon_loc
-        self._icon_region = [0, 0, 1366, 768]
+        self._icon_region = [0, 0, 3440, 1440]
         # image search can further be optimized with grayscale. Default is use grayscale, disable here
         # if issues arrive
         self._use_grayscale = use_grayscale
@@ -63,7 +60,7 @@ class GameAction(threading.Thread):
             self._newActionUsed.wait()
             # verify action was used
             time.sleep(self._wait_time)
-            if not self._offCooldown():
+            if self._offCooldown():
                 # when action is on cooldown, sleep for remaining time and then clear action used flag
                 self.offCooldown = False
                 time.sleep(self._remainingTime())
@@ -75,8 +72,11 @@ class GameAction(threading.Thread):
                 self.offCooldown = True
 
     def sendAction(self):
-        print("here")
-        simulisend(*self._keybind)
+        #print("here")
+        keyboard.press('ctrl')
+        keyboard.press(self._keybind)
+        keyboard.release(self._keybind)
+        keyboard.release('ctrl')
         self._last_used = time.time()
         self._newActionUsed.set()
         self.offCooldown = False
@@ -96,38 +96,32 @@ class GameAction(threading.Thread):
             return True if self._remainingTime() == 0 else False
 
     def _imageSearch(self):
-        found_coords = locateOnScreen(self.icon_path, region=self._icon_region, grayscale=self._use_grayscale)
+        found_coords = ahk.image_search(self.icon_path, upper_bound=self._icon_region[:2], lower_bound=self._icon_region[2:])
         # just search where the icon is for efficiency
         # this will break if the hotbar is moved. Don't do that. Fix by restarting script.
         if self._update_icon_loc and found_coords is not None:
-            self._icon_region = found_coords
+            self._icon_region = found_coords + (100, 100)
         return found_coords
 
 
-my_action = GameAction(('shift', 'm'), cooldown=1) #7.0, icon_path='image.png')
+# 79 is numpad 1
+heal = GameAction(79, cooldown=5.0, icon_path='heal.PNG')
+# 80 is numpad 2
+ccw = GameAction(80, cooldown=4.0, icon_path='ccw.PNG')
 
 
-def on_press(key):
-    print(f'{key} pressed')
+def checkMouse(arg):
+    while keyboard.is_pressed(arg.scan_code):
+        # print(threading.active_count())
+        # print(arg)
+        mouse.wait('x')  # does not seem to create many threads unintentionally
+        if heal.offCooldown:
+            heal.sendAction()
+        elif ccw.offCooldown:
+            ccw.sendAction()
 
 
-def on_release(key):
-    print(f'{key} release')
-    if key == Key.esc:
-        # Stop listener
-        return False
-
-
-def for_canonical(f):
-    return lambda k: f(listener.canonical(k))
-
-
-hotkey = HotKey(HotKey.parse('<alt>+h'), my_action.sendAction)
-
-while True:
-    with Listener(
-            on_press=for_canonical(hotkey.press),
-            on_release=for_canonical(hotkey.release)) as listener:
-        listener.join()
-
-        raise UserWarning("The listener stopped.")
+if __name__ == "__main__":
+    # keyboard.add_hotkey(111, checkMouse) # broken
+    keyboard.hook_key('alt', checkMouse)
+    keyboard.wait('')
