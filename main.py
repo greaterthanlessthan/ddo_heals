@@ -110,6 +110,7 @@ def on_release(key):
         # Stop listener
         return False
 
+
 time.sleep(5)
 while True:
     with Listener(
