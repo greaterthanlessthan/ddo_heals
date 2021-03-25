@@ -1,5 +1,7 @@
 # dependencies: pillow
 import pyautogui
+# pynput has many features that can overlap with pyautogui, but of them we only need Listener
+from pynput.keyboard import Key, Listener
 import time
 import threading
 
@@ -82,31 +84,35 @@ class GameAction(threading.Thread):
         # search for image if path is set
         if self.icon_path is not None:
             # search for icon
-            found_coords = self._imageSearch()
-            if found_coords is not None:
-                return True
-            else:
-                return False
+            return True if self._imageSearch() is not None else False
         else:
-            if self._remainingTime() == 0:
-                return True
-            else:
-                return False
+            return True if self._remainingTime() == 0 else False
 
     def _imageSearch(self):
         found_coords = pyautogui.locateOnScreen(self.icon_path, region=self._icon_region, grayscale=self._use_grayscale)
-        if self._update_icon_loc:
-            # just search where the icon is for efficiency
-            # this will break if the hotbar is moved. Don't do that. Fix by restarting script.
-            if found_coords is not None:
-                self._icon_region = found_coords
+        # just search where the icon is for efficiency
+        # this will break if the hotbar is moved. Don't do that. Fix by restarting script.
+        if self._update_icon_loc and found_coords is not None:
+            self._icon_region = found_coords
         return found_coords
 
 
 my_action = GameAction(('shift', 'm'), cooldown=7.0, icon_path='image.png')
 
+def on_press(key):
+    print('{0} pressed'.format(
+        key))
+
+def on_release(key):
+    print('{0} release'.format(
+        key))
+    if key == Key.esc:
+        # Stop listener
+        return False
+
 time.sleep(5)
 while True:
-    if my_action.offCooldown:
-        my_action.sendAction()
-    time.sleep(.01)
+    with Listener(
+            on_press=on_press,
+            on_release=on_release) as listener:
+        listener.join()
