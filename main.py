@@ -1,10 +1,17 @@
 # dependencies: pillow
-import pyautogui
-# pynput has many features that can overlap with pyautogui, but of them we only need Listener
-from pynput.keyboard import Key, Listener
+from pyautogui import hotkey as simulisend, locateOnScreen
+from pynput.keyboard import HotKey as old_Hotkey, Key, Listener, KeyCode
 import time
 import threading
 
+
+class HotKey(old_Hotkey):
+    """
+    Make pyautogui (list of keys) and pynpyt.keyboard (parse thing) arg behave the same
+    """
+    #ff@staticmethod
+    #def parse(keys):
+        #super().parse(keys)
 
 class GameAction(threading.Thread):
     """
@@ -56,8 +63,7 @@ class GameAction(threading.Thread):
             self._newActionUsed.wait()
             # verify action was used
             time.sleep(self._wait_time)
-            failed = self._offCooldown()
-            if not failed:
+            if not self._offCooldown():
                 # when action is on cooldown, sleep for remaining time and then clear action used flag
                 self.offCooldown = False
                 time.sleep(self._remainingTime())
@@ -69,7 +75,8 @@ class GameAction(threading.Thread):
                 self.offCooldown = True
 
     def sendAction(self):
-        pyautogui.hotkey(*self._keybind)
+        print("here")
+        simulisend(*self._keybind)
         self._last_used = time.time()
         self._newActionUsed.set()
         self.offCooldown = False
@@ -89,7 +96,7 @@ class GameAction(threading.Thread):
             return True if self._remainingTime() == 0 else False
 
     def _imageSearch(self):
-        found_coords = pyautogui.locateOnScreen(self.icon_path, region=self._icon_region, grayscale=self._use_grayscale)
+        found_coords = locateOnScreen(self.icon_path, region=self._icon_region, grayscale=self._use_grayscale)
         # just search where the icon is for efficiency
         # this will break if the hotbar is moved. Don't do that. Fix by restarting script.
         if self._update_icon_loc and found_coords is not None:
@@ -97,23 +104,30 @@ class GameAction(threading.Thread):
         return found_coords
 
 
-my_action = GameAction(('shift', 'm'), cooldown=7.0, icon_path='image.png')
+my_action = GameAction(('shift', 'm'), cooldown=1) #7.0, icon_path='image.png')
+
 
 def on_press(key):
-    print('{0} pressed'.format(
-        key))
+    print(f'{key} pressed')
+
 
 def on_release(key):
-    print('{0} release'.format(
-        key))
+    print(f'{key} release')
     if key == Key.esc:
         # Stop listener
         return False
 
 
-time.sleep(5)
+def for_canonical(f):
+    return lambda k: f(listener.canonical(k))
+
+
+hotkey = HotKey(HotKey.parse('<alt>+h'), my_action.sendAction)
+
 while True:
     with Listener(
-            on_press=on_press,
-            on_release=on_release) as listener:
+            on_press=for_canonical(hotkey.press),
+            on_release=for_canonical(hotkey.release)) as listener:
         listener.join()
+
+        raise UserWarning("The listener stopped.")
