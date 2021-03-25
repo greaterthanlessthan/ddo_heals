@@ -110,6 +110,7 @@ heal = GameAction(79, cooldown=5.0, icon_path='heal.PNG')
 ccw = GameAction(80, cooldown=4.0, icon_path='ccw.PNG')
 
 
+
 def checkMouse(arg):
     while keyboard.is_pressed(arg.scan_code):
         # print(threading.active_count())
