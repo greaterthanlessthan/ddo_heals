@@ -4,7 +4,7 @@ SendMode Input  ; Recommended for new scripts due to its superior speed and reli
 SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 #SingleInstance, force
 
-;# some logic is in for game_icon = false but it breaks without an icon
+;# some logic is in for game_icon = false but it breaks without icon
 
 class GameAction{	
 	;# how large the square of the hotbar icon is.
