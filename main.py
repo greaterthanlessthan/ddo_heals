@@ -7,7 +7,7 @@ from ahk import AHK
 ahk = AHK()
 
 import keyboard, mouse
-
+from mouse import X, X2, DOWN, UP
 
 class GameAction(threading.Thread):
     """
@@ -15,7 +15,7 @@ class GameAction(threading.Thread):
     needed to handle in-game actions
     """
 
-    def __init__(self, keybind, cooldown, icon_path=None, update_icon_loc=True, use_grayscale=True, wait_time=0.2):
+    def __init__(self, keybind, cooldown, icon_path=None, update_icon_loc=True, use_grayscale=True, wait_time=1.05):
         # for making threading work
         # set as daemon as nothing important is happening here
         threading.Thread.__init__(self, daemon=True)
@@ -44,7 +44,7 @@ class GameAction(threading.Thread):
 
         # when an action is used, game will take some time to get feedback to hotbar icon. If not on cooldown
         # when wait_time is elapsed, assume action failed and wait for _newActionUsed
-        self._wait_time = wait_time
+        self.wait_time = wait_time
 
         # for cooldown management
         self._last_used = 0.0
@@ -59,7 +59,7 @@ class GameAction(threading.Thread):
             # wait for the action to be used
             self._newActionUsed.wait()
             # verify action was used
-            time.sleep(self._wait_time)
+            time.sleep(self.wait_time)
             if not self._offCooldown():
                 # when action is on cooldown, sleep for remaining time and then clear action used flag
                 self.offCooldown = False
@@ -91,38 +91,87 @@ class GameAction(threading.Thread):
         # search for image if path is set
         if self.icon_path is not None:
             # search for icon
-            return True if self._imageSearch() is not None else False
+            return True if self.imageSearch() is not None else False
         else:
             return True if self._remainingTime() == 0 else False
 
-    def _imageSearch(self):
+    def imageSearch(self):
         found_coords = ahk.image_search(self.icon_path, upper_bound=self._icon_region[:2], lower_bound=self._icon_region[2:], color_variation=100)
         # just search where the icon is for efficiency
         # this will break if the hotbar is moved. Don't do that. Fix by restarting script.
         if self._update_icon_loc and found_coords is not None:
-            self._icon_region = found_coords + (100, 100)
+            self._icon_region = found_coords + (found_coords[0]+70, found_coords[1]+70)
         return found_coords
 
 
 # 79 is numpad 1
-heal = GameAction(79, cooldown=5.0, icon_path='heal.PNG')
+heal = GameAction(79, cooldown=5.1, icon_path='heal.PNG')
 # 80 is numpad 2
-ccw = GameAction(80, cooldown=4.0, icon_path='ccw.PNG')
+ccw = GameAction(80, cooldown=4.1, icon_path='ccw.PNG')
+# 81 is numpad 3
+csw = GameAction(81, cooldown=3.6, icon_path='csw.PNG')
+# 75 is numpad 4
+cmw = GameAction(75, cooldown=3.1, icon_path='cmw.PNG')
+# 76 is numpad 5
+
+# 77 is numpad 6
+mccw = GameAction(77, cooldown=6.1, icon_path='mccw.PNG')
+# 71 is numpad 7
+mcsw_sla = GameAction(71, cooldown=9.5, icon_path='mcsw_sla.PNG')
+# 72 is numpad 8
+mcsw = GameAction(72, cooldown=6.1, icon_path='mcsw.PNG')
+# 73 is numpad 9
+mcmw = GameAction(73, cooldown=5.0, icon_path='mcmw.PNG')
+# 82 is numpad 0
+mclw = GameAction(82, cooldown=5.0, icon_path='mclw.PNG')
 
 
-
-def checkMouse(arg):
+def massHeal(arg):
     while keyboard.is_pressed(arg.scan_code):
-        # print(threading.active_count())
-        # print(arg)
-        mouse.wait('x')  # does not seem to create many threads unintentionally
+        mass_heal_mouse_event.wait()
+        if mccw.offCooldown:
+            mccw.sendAction()
+            time.sleep(mccw.wait_time)
+        elif mcsw_sla.offCooldown:
+            mcsw_sla.sendAction()
+            time.sleep(mcsw_sla.wait_time)
+        elif mcsw.offCooldown:
+            mcsw.sendAction()
+            time.sleep(mcsw.wait_time)
+        elif mcmw.offCooldown:
+            mcmw.sendAction()
+            time.sleep(mcmw.wait_time)
+        elif mclw.offCooldown:
+            mclw.sendAction()
+            time.sleep(mclw.wait_time)
+
+def spotHeal(arg):
+    while keyboard.is_pressed(arg.scan_code):
+        spot_heal_mouse_event.wait()
         if heal.offCooldown:
             heal.sendAction()
+            time.sleep(heal.wait_time)
         elif ccw.offCooldown:
             ccw.sendAction()
-
+            time.sleep(ccw.wait_time)
+        elif csw.offCooldown:
+            csw.sendAction()
+            time.sleep(csw.wait_time)
+        elif cmw.offCooldown:
+            cmw.sendAction()
+            time.sleep(cmw.wait_time)
 
 if __name__ == "__main__":
-    # keyboard.add_hotkey(111, checkMouse) # broken
-    keyboard.hook_key('alt', checkMouse)
+    # handle mass heals
+    mass_heal_mouse_event = threading.Event()
+    keyboard.hook_key('alt', massHeal)
+    mouse.on_button(mass_heal_mouse_event.set, buttons=X, types=DOWN)
+    mouse.on_button(mass_heal_mouse_event.clear, buttons=X, types=UP)
+
+    # handle spot heals
+    spot_heal_mouse_event = threading.Event()
+    #keyboard.hook_key('alt', spotHeal)
+    mouse.on_button(spot_heal_mouse_event.set, buttons=X2, types=DOWN)
+    mouse.on_button(spot_heal_mouse_event.clear, buttons=X2, types=UP)
+
     keyboard.wait('')
