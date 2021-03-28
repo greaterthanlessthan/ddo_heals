@@ -1,10 +1,10 @@
 #NoEnv  ; Recommended for performance and compatibility with future AutoHotkey releases.
-; #Warn  ; Enable warnings to assist with detecting common errors.
+#Warn  ; Enable warnings to assist with detecting common errors.
 SendMode Input  ; Recommended for new scripts due to its superior speed and reliability.
 SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 #SingleInstance, force
 
-;# some logic is in for game_icon = false but it breaks without icon
+;# some logic is in for game_icon = false but it breaks without an icon
 
 class GameAction{	
 	;# how large the square of the hotbar icon is.
@@ -17,7 +17,7 @@ class GameAction{
 	;# for troubleshooting purposes
 	static enable_msgbox := false
 	
-	__New(aIcon, aCooldown, aKey, aAlt:=false, aSub:=false, aBlocks:=true)
+	__New(aIcon, aCooldown, aKey, aAlt:=false, aSub:=false, aBlocks:=1050)
 	{
 		;# instantiate this object
 		this.game_icon := aIcon
@@ -34,8 +34,8 @@ class GameAction{
 		this.subsequent_action := aSub
 		this.off_cooldown := true
 		
-		;# if the action is instant or not
-		this.blocks := aBlocks
+		;# how long to prevent other actions
+		this.block_time := aBlocks
 		
 		;# for storing tickcount
 		this.last_used_time := 0
@@ -47,7 +47,7 @@ class GameAction{
 		sleep this.game_delay
 		
 		;# if we found the icon, global cooldown was not starting, thus the action failed
-		;# if we don't have an icon, we can only assume it worked
+		;# if we don't have an icon, we can only assume the action succeeded
 		if (this.game_icon != false and this.searchForIcon())
 		{
 			if (this.enable_msgbox)
@@ -64,10 +64,7 @@ class GameAction{
 			this.last_used_time := A_TickCount
 			
 			;# block sending hotkeys during the global cooldown or animation time
-			if (this.blocks)
-			{
-				sleep this.game_animation_time
-			}
+			sleep this.block_time
 			return true
 		}
 		
@@ -92,8 +89,8 @@ class GameAction{
 	{
 		;# check if cooldown has elapsed
 		
-		;# send the action if it is off cooldown, and also check if it's available
-		if (this.timeHasElapsed() and this.searchForIcon())
+		;# send the action if it is off cooldown, or check if it's available
+		if ((this.timeHasElapsed() and this.game_icon = false) or this.searchForIcon())
 		{
 			if (this.enable_msgbox)
 			{
@@ -211,7 +208,7 @@ Hotkey, ^!XButton1, ResLabel
 Hotkey, +^!XButton1, ResLabel
 
 ;# define boosts
-global reaper := new GameAction("reaper.png", 40100, "^{NumpadDiv}", false, false, false)
+global reaper := new GameAction(false, 40100, "^{NumpadDiv}", false, false, 100)
 global aureon := new GameAction("aureon.png", 600100, "^{NumpadSub}", reaper)
 global ascend := new GameAction("ascend.png", 300100, "^{NumpadMult}", aureon)
 
@@ -224,8 +221,7 @@ global illusionist := new GameAction("illusion.png", 180100, "{NumpadDiv}", meld
 Hotkey, !MButton, DodgeLabel
 Hotkey, +!MButton, DodgeLabel
 
-
-
+;##############################################################################################
 ;# End of definitions, begin labels
 Return
 ; Spot Heals -- Heal -> CCW -> CSW -> CMW
